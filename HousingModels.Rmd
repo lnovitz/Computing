@@ -204,12 +204,15 @@ predict.regsubsets <- function(object, newdata, id, ...){
 
 ```{r}
 vars <- 8
-MSPE <- c()
+MSPEval <- c()
 for (i in 1:vars){
-MSPE[i] = mean((validation$SalePrice - predict.regsubsets(object = bestmods, 
+MSPEval[i] = mean((validation$SalePrice - predict.regsubsets(object = bestmods, 
                    newdata = validation,
                    id = i))^2) 
 }
-MSPE
-  
+MSPEval
+```
+Using forward selection, we've chosen the 7 variable model that includes OverallQual, YearBuilt, YearRemodAdd, TotalBsmtSF, GrLivArea, FullBath, and GarageCars.
+```{r}
+coef(bestmods, id=7)
 ```
