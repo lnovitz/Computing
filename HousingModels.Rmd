@@ -216,3 +216,19 @@ Using forward selection, we've chosen the 7 variable model that includes Overall
 ```{r}
 coef(bestmods, id=7)
 ```
+Alternatively, we could have used cross validation AND forward selection.
+# Model 2, cross validation AND forward selection
+```{r}
+set.seed(599)
+
+house_data_cv <- house_data %>% 
+  mutate(grp = sample(rep(1:5, ceiling(nrow(house_data)/5)), 
+                      size=n(), 
+                      replace=FALSE))
+house_data_cv %>% 
+  group_by(grp) %>% 
+  count()
+
+test_cv <- house_data_cv %>% filter(grp == 1)
+validation_cv <- house_data_cv %>% filter(grp != 1)
+```
