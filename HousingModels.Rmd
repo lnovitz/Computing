@@ -1,0 +1,220 @@
+---
+title: "HousingModels"
+author: "Lianna Novitz"
+date: "3/23/2018"
+output: html_document
+---
+
+```{r, echo=FALSE}
+library(ggplot2) #tidyverse
+library(dplyr) #tidyverse
+library(tidyr) #tidyverse
+library(readr) #tidyverse
+library(gridExtra)
+library(GGally) 
+library(leaps) 
+library(glmnet)
+
+#if you don't need a code chunk at all, {r, eval=FALSE, echo=FALSE}
+#if you don't need to show the code but need it evaluated, {r, echo=FALSE}
+#won't knit if you have ANY errors, be careful
+#don't knit with View(dataset), too big, 
+```
+
+```{r}
+house_data <- read_csv("https://www.dropbox.com/s/lslekih13vae487/house_train_final.csv?dl=1")
+head(house_data)
+```
+
+```{r, echo=FALSE, eval=FALSE}
+house_data %>% 
+  select(c(1:9,50)) %>% 
+  ggpairs()
+```
+
+```{r, echo=FALSE, eval=FALSE}
+house_data %>% 
+  select(c(10:19,50)) %>% 
+  ggpairs()
+```
+
+```{r, echo=FALSE, eval=FALSE}
+house_data %>% 
+  select(c(20:29,50)) %>% 
+  ggpairs()
+```
+
+```{r, echo=FALSE, eval=FALSE}
+#```{r, fig.width=12, fig.height=12}
+```
+
+```{r, echo=FALSE, eval=FALSE}
+house_data %>% 
+  select(c(30:39,50)) %>% 
+  ggpairs()
+```
+
+```{r, echo=FALSE, eval=FALSE}
+house_data %>% 
+  select(c(40:49,50)) %>% 
+  ggpairs()
+```
+
+After performing the ggpairs function, I noticed that there are a few variables which have a high correlation with SalePrice. I have graphed these relationships below.
+```{r, echo=FALSE}
+qualP <-
+house_data %>% 
+  ggplot(aes(x=OverallQual, y=SalePrice)) +
+  geom_point()
+
+buildyearP <-
+house_data %>% 
+  ggplot(aes(x=YearBuilt, y=SalePrice)) +
+  geom_point()
+
+remodyearP <-
+house_data %>% 
+  ggplot(aes(x=YearRemodAdd, y=SalePrice)) +
+  geom_point()
+
+bsmtsfP <-
+house_data %>% 
+  ggplot(aes(x=TotalBsmtSF, y=SalePrice)) +
+  geom_point()
+
+airP <-
+house_data %>% 
+  ggplot(aes(x=CentralAir, y=SalePrice)) +
+  geom_point()
+
+electricP <-
+house_data %>% 
+  ggplot(aes(x=Electrical, y=SalePrice)) +
+  geom_point()
+
+firstflrsfP <-
+house_data %>% 
+  ggplot(aes(x=FirstFlrSF, y=SalePrice)) +
+  geom_point()
+
+grlivareaP <-
+house_data %>% 
+  ggplot(aes(x=GrLivArea, y=SalePrice)) +
+  geom_point()
+
+bathP <-
+house_data %>% 
+  ggplot(aes(x=FullBath, y=SalePrice)) +
+  geom_point()
+
+rmsabvgrdP <-
+house_data %>% 
+  ggplot(aes(x=TotRmsAbvGrd, y=SalePrice)) +
+  geom_point()
+
+garcarsP <-
+house_data %>% 
+  ggplot(aes(x=GarageCars, y=SalePrice)) +
+  geom_point()
+
+garareaP <-
+house_data %>% 
+  ggplot(aes(x=GarageArea, y=SalePrice)) +
+  geom_point()
+
+```
+
+
+```{r}
+grid.arrange(qualP, buildyearP, remodyearP, bsmtsfP, airP, electricP, firstflrsfP, grlivareaP, bathP, rmsabvgrdP, garcarsP, garareaP,  ncol = 4, newpage = TRUE)
+```
+
+I also noticed a few variables which contained many zeroes which likely could have a skewing effect on the data, Enclosed Porch, ThreeSsnPorch, ScreenPorch, and SecondFlrSF. It seems that most of the houses in this dataset do not have porches (so automatically EnclosedPorch, ThreeSsnPorch, and ScreenPorch are not very applicable to our model building.) Weirdly enough, if we look at HouseStyle, we see over 400 houses do have 2 stories but in the SeconfFlrSF variable data, there seems to be a lot of missing measurements of square footage of second floors..So maybe I just won't pay attention to square footage of floors, as there seems to be conflicting data. 
+
+```{r}
+house_data %>%
+  group_by(EnclosedPorch) %>%
+  count()
+
+house_data %>%
+  group_by(ThreeSsnPorch) %>%
+  count()
+
+house_data %>%
+  group_by(ScreenPorch) %>%
+  count()
+
+house_data %>%
+  group_by(SecondFlrSF) %>%
+  count
+```
+```{r}
+house_data %>%
+  group_by(Fence) %>%
+  count
+
+
+```
+
+```{r}
+house_data %>%
+  group_by(BldgType) %>%
+  count()
+```
+
+```{r}
+house_data %>%
+  group_by(HouseStyle) %>%
+  count()
+```
+
+#Model 1 - using forward selection
+```{r}
+myvars <- c("OverallQual", "YearBuilt", "YearRemodAdd", "TotalBsmtSF", "CentralAir", "Electrical", "FirstFlrSF", "GrLivArea", "FullBath", "TotRmsAbvGrd", "GarageCars", "GarageArea", "SalePrice")
+newhouse_data <- house_data[myvars]
+```
+
+```{r}
+set.seed(399)
+
+House.subset <- 
+  newhouse_data %>% 
+  mutate(grp = sample(0:1, 
+                      size=n(), 
+                      replace=TRUE))
+
+training <- House.subset %>% filter(grp == 0)
+validation <- House.subset %>% filter(grp == 1)
+```
+
+```{r}
+head(House.subset)
+```
+
+```{r}
+bestmods <- regsubsets(x = SalePrice ~ OverallQual + YearBuilt + YearRemodAdd + TotalBsmtSF + CentralAir + factor(Electrical) + FirstFlrSF + GrLivArea + factor(FullBath) + factor(TotRmsAbvGrd) + factor(GarageCars) + GarageArea,             
+                   data = training %>% 
+                     select(-grp),     
+                   nvmax = 11,          
+                   method = "forward") 
+```
+
+```{r}
+predict.regsubsets <- function(object, newdata, id, ...){
+  form <- as.formula(object$call[[2]])
+  coefi <- coef(object, id=id)
+  model.matrix(form, data=newdata)[,names(coefi)] %*% coefi
+}
+```
+
+```{r}
+vars = 12
+mspeall = c()
+for (i in 1:vars){
+predict.regsubsets(object = bestmods, 
+                   newdata = validation,
+                   id = i)
+mspeall[1] = actual - pred  
+}
+  
+```
