@@ -15,6 +15,7 @@ library(GGally)
 library(leaps) 
 library(glmnet)
 
+house_data <- house
 #if you don't need a code chunk at all, {r, eval=FALSE, echo=FALSE}
 #if you don't need to show the code but need it evaluated, {r, echo=FALSE}
 #won't knit if you have ANY errors, be careful
@@ -163,6 +164,8 @@ house_data %>%
   count()
 ```
 
+iif rooms vs saleprice is linear plot, dont use factor
+
 #Model 1 - using forward selection
 ```{r}
 myvars <- c("OverallQual", "YearBuilt", "YearRemodAdd", "TotalBsmtSF", "CentralAir", "Electrical", "FirstFlrSF", "GrLivArea", "FullBath", "TotRmsAbvGrd", "GarageCars", "GarageArea", "SalePrice")
@@ -187,11 +190,18 @@ head(House.subset)
 ```
 
 ```{r}
-bestmods <- regsubsets(x = SalePrice ~ OverallQual + YearBuilt + YearRemodAdd + TotalBsmtSF + CentralAir + factor(Electrical) + FirstFlrSF + GrLivArea + factor(FullBath) + factor(TotRmsAbvGrd) + factor(GarageCars) + GarageArea,             
+bestmods <- regsubsets(x = SalePrice ~ OverallQual + YearBuilt + YearRemodAdd + TotalBsmtSF + CentralAir + factor(Electrical) + FirstFlrSF + GrLivArea + factor(FullBath) + TotRmsAbvGrd + factor(GarageCars) + GarageArea,             
                    data = training %>% 
                      select(-grp),     
                    nvmax = 12,          
                    method = "forward") 
+```
+When building this model, I initially set the following variables as factor: Electrical, FullBath, TotRmsAbvGrd, and GarageCars. However, when splitting the data into training and validation sets, I faced the problem of too few observations in at least one of the levels. So I chose to represent TotRmsAbvGrd as simply quantitative in my model. I also ended up removing Electrical from my model because there were too few observations in its categorical levels. 
+```{r}
+house_data %>%
+  group_by(Electrical) %>%
+count()
+```
 ```
 
 ```{r}
@@ -217,6 +227,7 @@ Using forward selection, we've chosen the 7 variable model that includes Overall
 coef(bestmods, id=7)
 ```
 Alternatively, we could have used cross validation AND forward selection.
+
 # Model 2, cross validation AND forward selection
 ```{r}
 set.seed(599)
