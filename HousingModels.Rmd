@@ -238,7 +238,7 @@ For loop time
 grps <- 5
 varz <- 8
 MSPE_cv <- matrix(nrow=6, ncol=8)
-
+#ok
 for (i in 1: grps){
   for (j in 1:varz){
     
