@@ -21,11 +21,6 @@ library(glmnet)
 #don't knit with View(dataset), too big, 
 ```
 
-```{r}
-house_data <- read_csv("https://www.dropbox.com/s/lslekih13vae487/house_train_final.csv?dl=1")
-head(house_data)
-```
-
 ```{r, echo=FALSE, eval=FALSE}
 house_data %>% 
   select(c(1:9,50)) %>% 
@@ -195,7 +190,7 @@ head(House.subset)
 bestmods <- regsubsets(x = SalePrice ~ OverallQual + YearBuilt + YearRemodAdd + TotalBsmtSF + CentralAir + factor(Electrical) + FirstFlrSF + GrLivArea + factor(FullBath) + factor(TotRmsAbvGrd) + factor(GarageCars) + GarageArea,             
                    data = training %>% 
                      select(-grp),     
-                   nvmax = 11,          
+                   nvmax = 12,          
                    method = "forward") 
 ```
 
@@ -208,13 +203,13 @@ predict.regsubsets <- function(object, newdata, id, ...){
 ```
 
 ```{r}
-vars = 12
-mspeall = c()
+vars <- 8
+MSPE <- c()
 for (i in 1:vars){
-predict.regsubsets(object = bestmods, 
+MSPE[i] = mean((validation$SalePrice - predict.regsubsets(object = bestmods, 
                    newdata = validation,
-                   id = i)
-mspeall[1] = actual - pred  
+                   id = i))^2) 
 }
+MSPE
   
 ```
