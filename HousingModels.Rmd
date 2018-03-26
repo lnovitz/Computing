@@ -127,7 +127,7 @@ grid.arrange(qualP, buildyearP, remodyearP, bsmtsfP, airP, electricP, firstflrsf
 
 I also noticed a few variables which contained many zeroes which likely could have a skewing effect on the data, Enclosed Porch, ThreeSsnPorch, ScreenPorch, and SecondFlrSF. It seems that most of the houses in this dataset do not have porches (so automatically EnclosedPorch, ThreeSsnPorch, and ScreenPorch are not very applicable to our model building.) Weirdly enough, if we look at HouseStyle, we see over 400 houses do have 2 stories but in the SeconfFlrSF variable data, there seems to be a lot of missing measurements of square footage of second floors..So maybe I just won't pay attention to square footage of floors, as there seems to be conflicting data. 
 
-```{r}
+```{r, echo=FALSE}
 house_data %>%
   group_by(EnclosedPorch) %>%
   count()
@@ -152,13 +152,13 @@ house_data %>%
 
 ```
 
-```{r}
+```{r, echo=FALSE}
 house_data %>%
   group_by(BldgType) %>%
   count()
 ```
 
-```{r}
+```{r, echo=FALSE}
 house_data %>%
   group_by(HouseStyle) %>%
   count()
@@ -167,12 +167,12 @@ house_data %>%
 iif rooms vs saleprice is linear plot, dont use factor
 
 #Model 1 - using forward selection
-```{r}
+```{r, echo=FALSE}
 myvars <- c("OverallQual", "YearBuilt", "YearRemodAdd", "TotalBsmtSF", "CentralAir", "Electrical", "FirstFlrSF", "GrLivArea", "FullBath", "TotRmsAbvGrd", "GarageCars", "GarageArea", "SalePrice")
 newhouse_data <- house_data[myvars]
 ```
 
-```{r}
+```{r, echo=FALSE}
 set.seed(399)
 
 House.subset <- 
@@ -185,26 +185,54 @@ training <- House.subset %>% filter(grp == 0)
 validation <- House.subset %>% filter(grp == 1)
 ```
 
-```{r}
+```{r, echo=FALSE}
 head(House.subset)
+```
+Before building a model, I examined the relationship between each included explanatory variable and the response variable (SalePrice) to make sure we could proceed with the linear model assumptions.
+
+```{r, echo=FALSE}
+house_data %>%
+  group_by(TotalBsmtSF) %>% 
+count()
+```
+
+
+```{r, echo=FALSE}
+sale <- lm(SalePrice ~ TotalBsmtSF,
+                data=house_data)
+relate <-
+house_data %>% 
+  ggplot() +
+  geom_jitter(aes(x=TotalBsmtSF, y=SalePrice), width = .2) +
+  geom_smooth(aes(x=TotalBsmtSF, y=SalePrice), method = "lm")
+
+distr <-
+house_data %>% 
+  mutate(fitted.vals = sale$fitted.values, 
+         resids = sale$residuals) %>% 
+  ggplot(aes(x=resids)) +
+  geom_histogram()
 ```
 
 ```{r}
-bestmods <- regsubsets(x = SalePrice ~ OverallQual + YearBuilt + YearRemodAdd + TotalBsmtSF + CentralAir + factor(Electrical) + FirstFlrSF + GrLivArea + factor(FullBath) + TotRmsAbvGrd + factor(GarageCars) + GarageArea,             
+grid.arrange(relate, distr,  ncol = 2, newpage = TRUE)
+```
+
+```{r}
+bestmods <- regsubsets(x = SalePrice ~ OverallQual + YearBuilt + YearRemodAdd + TotalBsmtSF + CentralAir + FirstFlrSF + GrLivArea + factor(FullBath) + TotRmsAbvGrd + factor(GarageCars) + GarageArea,             
                    data = training %>% 
                      select(-grp),     
-                   nvmax = 12,          
+                   nvmax = 11,          
                    method = "forward") 
 ```
 When building this model, I initially set the following variables as factor: Electrical, FullBath, TotRmsAbvGrd, and GarageCars. However, when splitting the data into training and validation sets, I faced the problem of too few observations in at least one of the levels. So I chose to represent TotRmsAbvGrd as simply quantitative in my model. I also ended up removing Electrical from my model because there were too few observations in its categorical levels. 
 ```{r}
 house_data %>%
-  group_by(Electrical) %>%
+  group_by(Electrical) %>% 
 count()
 ```
-```
 
-```{r}
+```{r, echo=FALSE}
 predict.regsubsets <- function(object, newdata, id, ...){
   form <- as.formula(object$call[[2]])
   coefi <- coef(object, id=id)
@@ -213,7 +241,7 @@ predict.regsubsets <- function(object, newdata, id, ...){
 ```
 
 ```{r}
-vars <- 8
+vars <- 11
 MSPEval <- c()
 for (i in 1:vars){
 MSPEval[i] = mean((validation$SalePrice - predict.regsubsets(object = bestmods, 
@@ -222,14 +250,16 @@ MSPEval[i] = mean((validation$SalePrice - predict.regsubsets(object = bestmods,
 }
 MSPEval
 ```
+
 Using forward selection, we've chosen the 7 variable model that includes OverallQual, YearBuilt, YearRemodAdd, TotalBsmtSF, GrLivArea, FullBath, and GarageCars.
+
 ```{r}
 coef(bestmods, id=7)
 ```
 Alternatively, we could have used cross validation AND forward selection.
 
 # Model 2, cross validation AND forward selection
-```{r}
+```{r, echo=FALSE}
 set.seed(599)
 
 house_data_cv <- house_data %>% 
@@ -249,7 +279,7 @@ For loop time
 grps <- 5
 varz <- 8
 MSPE_cv <- matrix(nrow=6, ncol=8)
-#ok
+
 for (i in 1: grps){
   for (j in 1:varz){
     
