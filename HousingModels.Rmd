@@ -5,7 +5,7 @@ date: "3/23/2018"
 output: html_document
 ---
 
-```{r, echo=FALSE}
+```{r, echo=FALSE, warning = FALSE, message=FALSE}
 library(ggplot2) #tidyverse
 library(dplyr) #tidyverse
 library(tidyr) #tidyverse
@@ -15,7 +15,8 @@ library(GGally)
 library(leaps) 
 library(glmnet)
 
-house_data <- house
+house_data <- read_csv("https://www.dropbox.com/s/lslekih13vae487/house_train_final.csv?dl=1")
+
 #if you don't need a code chunk at all, {r, eval=FALSE, echo=FALSE}
 #if you don't need to show the code but need it evaluated, {r, echo=FALSE}
 #won't knit if you have ANY errors, be careful
@@ -269,7 +270,20 @@ house_data_cv <- house_data %>%
 house_data_cv %>% 
   group_by(grp) %>% 
   count()
+```
 
+```{r, echo=FALSE}
+grpz <- 5
+for (i in 1: grpz){
+grp1 <- filter(house_data_cv, grp == i)
+show<- grp1 %>% 
+  group_by(TotRmsAbvGrd) %>% 
+  count()
+print(show)}
+```
+FullBath also had too few observations in each group - some levels were left out, so I removed the variable from my model.
+
+```{r}
 test_cv <- house_data_cv %>% filter(grp == i)
 validation_cv <- house_data_cv %>% filter(grp != i)
 ```
@@ -278,23 +292,30 @@ For loop time
 ```{r}
 grps <- 5
 varz <- 8
-MSPE_cv <- matrix(nrow=6, ncol=8)
+MSPE_cv <- matrix(nrow=5, ncol=8)
+MSPE_mean <- c()
 
 for (i in 1: grps){
-  for (j in 1:varz){
     
-test_cv <- house_data_cv %>% filter(grps == i)
-validation_cv <- house_data_cv %>% filter(grps != i)
+test_cv <- house_data_cv %>% filter(grp == i)
+training_cv <- house_data_cv %>% filter(grp != i)
 
-bestmods_cv <- regsubsets(x = SalePrice ~ OverallQual + YearBuilt + YearRemodAdd + TotalBsmtSF + CentralAir + Electrical + FirstFlrSF + GrLivArea + FullBath + TotRmsAbvGrd + GarageCars + GarageArea,
-                   data = validation_cv %>% 
-                     select(-grp),     
-                   nvmax = 8,          
-                   method = "forward") 
-
-MSPE_cv[i, j] = mean((test_cv$SalePrice - predict.regsubsets(object = bestmods_cv, 
+bestmods_cv <- regsubsets(x = SalePrice ~ OverallQual + YearBuilt + YearRemodAdd + TotalBsmtSF + CentralAir  + FirstFlrSF + GrLivArea + FullBath + TotRmsAbvGrd + GarageCars + GarageArea,
+                   data = training_cv %>%
+                     select(-grp),
+                   nvmax = 8,
+                   method = "forward")
+for (j in 1:varz){
+  MSPE_cv[i, j] = mean((test_cv$SalePrice - predict.regsubsets(object = bestmods_cv, 
                    newdata = test_cv,
                    id = j))^2) 
+  MSPE_mean[j] = mean(MSPE_cv[,j])
 }}
+
 MSPE_cv
+MSPE_mean
 ```
+The best model with 8 variables had the lowest mean squared prediction error, so we will choose that one.
+interp coefficients]
+
+concluding sentences few
