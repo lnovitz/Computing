@@ -1,7 +1,7 @@
 ---
-title: "HousingModels"
+title: "Predicting Housing Prices"
 author: "Lianna Novitz"
-date: "3/23/2018"
+date: "3/27/2018"
 output: html_document
 ---
 
@@ -122,7 +122,7 @@ house_data %>%
 ```
 
 
-```{r, fig.cap="Figure 1: Variables With Visually High Correlation With Sale Price"}
+```{r, fig.cap="Figure 1: Variables With Visually High Correlation With Sale Price", echo=FALSE}
 grid.arrange(qualP, buildyearP, remodyearP, bsmtsfP, airP, electricP, firstflrsfP, grlivareaP, bathP, rmsabvgrdP, garcarsP, garareaP,  ncol = 4, newpage = TRUE)
 ```
 
@@ -130,7 +130,7 @@ I also noticed a few variables which contained many zeroes which likely could ha
 
 Also, if we look at HouseStyle, we see over 400 houses do have 2 stories but in the SeconfFlrSF variable data, there seems to be a lot of missing measurements of square footage of second floors..So I just won't pay attention to square footage of floors, as there seems to be conflicting data. 
 
-```{r}
+```{r, echo=FALSE}
 library(knitr)
 kable(
   house_data %>% 
@@ -142,7 +142,7 @@ kable(
 
 ```
 
-```{r, echo=FALSE}
+```{r, eval=FALSE, echo=FALSE}
 house_data %>%
   group_by(EnclosedPorch) %>%
   count()
@@ -159,19 +159,19 @@ house_data %>%
   group_by(SecondFlrSF) %>%
   count
 ```
-```{r, echo=FALSE}
+```{r, eval=FALSE, echo=FALSE}
 house_data %>%
   group_by(Fence) %>%
   count
 ```
 
-```{r, echo=FALSE}
+```{r, eval=FALSE, echo=FALSE}
 house_data %>%
   group_by(BldgType) %>%
   count()
 ```
 
-```{r, echo=FALSE}
+```{r, eval=FALSE, echo=FALSE}
 house_data %>%
   group_by(HouseStyle) %>%
   count()
@@ -185,8 +185,8 @@ myvars <- c("OverallQual", "YearBuilt", "YearRemodAdd", "TotalBsmtSF", "CentralA
 newhouse_data <- house_data[myvars]
 ```
 
-First, I divided our dataset into a training and validation set. The code below details this transformation.
-```{r}
+First, I divided our dataset into a training and validation set.
+```{r, message=FALSE}
 set.seed(399)
 
 House.subset <- 
@@ -199,12 +199,12 @@ training <- House.subset %>% filter(grp == 0)
 validation <- House.subset %>% filter(grp == 1)
 ```
 
-```{r, echo=FALSE}
+```{r, message=FALSE, echo=FALSE}
 head(House.subset)
 ```
-Before building a model, I examined the linear relationship between each potential explanatory variable and the response variable (SalePrice) to make sure we could proceed with a linear model. 
+Before building a model, I examined the linear relationship between each potential explanatory variable and the response variable (SalePrice) to make sure we could proceed with a linear model. We look for constant variance on the left graph and a relatively normal distribution of residuals on the righthand graph.
 
-```{r, echo=FALSE}
+```{r, echo=FALSE, eval=FALSE}
 house_data %>%
   group_by(TotalBsmtSF) %>% 
 count()
@@ -214,8 +214,6 @@ count()
 ```{r, echo=FALSE}
 sale <- lm(SalePrice ~ GarageArea,
                 data=house_data)
-
-#GarageArea
 
 relate <-
 house_data %>% 
@@ -231,9 +229,11 @@ house_data %>%
   geom_histogram()
 ```
 
-```{r}
+```{r, echo=FALSE}
 grid.arrange(relate, distr,  ncol = 2, newpage = TRUE)
 ```
+
+When building this model, I initially set the following variables as factor: Electrical, FullBath, TotRmsAbvGrd, and GarageCars. However, when splitting the data into training and validation sets, I faced the problem of too few observations in at least one of the levels. So I chose to represent TotRmsAbvGrd as simply quantitative in my model, without factors.
 
 ```{r}
 bestmods <- regsubsets(x = SalePrice ~ OverallQual + YearBuilt + YearRemodAdd + TotalBsmtSF + CentralAir + FirstFlrSF + GrLivArea + factor(FullBath) + TotRmsAbvGrd + factor(GarageCars) + GarageArea,             
@@ -242,23 +242,50 @@ bestmods <- regsubsets(x = SalePrice ~ OverallQual + YearBuilt + YearRemodAdd + 
                    nvmax = 11,          
                    method = "forward") 
 ```
-When building this model, I initially set the following variables as factor: Electrical, FullBath, TotRmsAbvGrd, and GarageCars. However, when splitting the data into training and validation sets, I faced the problem of too few observations in at least one of the levels. So I chose to represent TotRmsAbvGrd as simply quantitative in my model. I also ended up removing Electrical from my model because there were too few observations in its categorical levels. 
-```{r}
+
+
+```{r, echo=FALSE}
+library(knitr)
+kable(
+  house_data %>% 
+    group_by(TotRmsAbvGrd) %>% 
+    count(),
+  align = c("l", "c"),
+  caption = "Table 2: Distribution of Total Rooms Above Ground"
+)
+```
+
+
+I also ended up removing Electrical from my model because there were too few observations in its categorical levels. 
+
+```{r, echo=FALSE}
+library(knitr)
+kable(
+  house_data %>% 
+    group_by(Electrical) %>% 
+    count(),
+  align = c("l", "c"),
+  caption = "Table 3: Distribution of Electrical System Type"
+)
+
+```
+
+```{r, echo=FALSE}
 house_data %>%
   group_by(GarageCars) %>% 
 count()
 ```
-
-```{r, echo=FALSE}
+Having removed inadequate variables, I continued by naming the function which would carry out our forward selection modeling process.
+```{r}
 predict.regsubsets <- function(object, newdata, id, ...){
   form <- as.formula(object$call[[2]])
   coefi <- coef(object, id=id)
   model.matrix(form, data=newdata)[,names(coefi)] %*% coefi
 }
 ```
-
+Next, I used the regsubsets forward selection function to find the best model (1 variable or 2 variable ... or 7 variable model) via the lowest mean squared prediction error.
 ```{r}
-vars <- 11
+vars <- 7
 MSPEval <- c()
 for (i in 1:vars){
 MSPEval[i] = mean((validation$SalePrice - predict.regsubsets(object = bestmods, 
@@ -278,24 +305,48 @@ Our chosen model is the following:
 $$
 SalePrice=-1,400,000 + 17,000(OverallQual) + 400(YearBuilt) + \\ 300(YearRemodAdd) + 34(TotalBsmtSF) + 65(GrLivArea) \\ -20,000(FullBath=2) + 43,000(GarageCars = 3)
 $$
-##The coefficients in our model relate to how much the response variable, SalesPrice, changes in regards to its corresponding variable, keeping all other variables constant. For example, for every point increase in overall quality a house is given, the SalesPrice is expected to increase by $17,000, keeping all other variables constant. In contrast, given that there's only 2 full bathroom in a house, the SalesPrice is expected to decrease by $20,000. So on and so forth. When there are 3 spaces for cars in a garage, the SalesPrice is expected to increase by $43,000, on average. 
+The coefficients in our model relate to how much the response variable, SalesPrice, changes in regards to its corresponding variable, keeping all other variables constant. 
+#
+For every point increase in overall quality a house is given, the SalesPrice is expected to increase by  about $17,000, keeping all other variables constant. 
 
-Alternatively, we could have used cross validation AND forward selection.
+For every year older the house is, the SalesPrice is expected to increase by  about $400, keeping all other variables constant. I would expect the opposite, but no model's perfect.
+
+For every year passed since remodelling, the SalesPrice is expected to increase by  about $300, keeping all other variables constant. Again, I would expect the opposite, but no model's perfect.
+
+For each extra square foot of basement space, the SalesPrice is expected to increase by about $34, keeping all other variables constant. This is almost negligible.
+
+For each increase in living area grade, the SalesPrice is expected to increase by about $65, keeping all other variables constant. Again, this is almost negligible.
+
+Given that there's 2 full bathrooms in a house, the SalesPrice is expected to decrease by about $20,000, on average. 
+
+Given that there's 3 car spaces in the garage, the SalesPrice is expected to increase by about $43,000, on average. 
+#
+
+Alternatively, we could have used cross validation AND forward selection to choose our model. I do this next in Model 2.
 
 # Model 2, Interpretability
-```{r, echo=FALSE}
+
+First, I divided our dataset into 5 groups for cross-validation. We have over 200 observations in each group.
+```{r, echo=FALSE, message=FALSE}
 set.seed(599)
 
 house_data_cv <- house_data %>% 
   mutate(grp = sample(rep(1:5, ceiling(nrow(house_data)/5)), 
                       size=n(), 
                       replace=FALSE))
-house_data_cv %>% 
-  group_by(grp) %>% 
-  count()
 ```
 
 ```{r, echo=FALSE}
+kable(
+  house_data_cv %>% 
+    group_by(grp) %>% 
+    count(),
+  align = c("l", "c"),
+  caption = "Table 4: Distribution of Groups for Cross-Validation"
+)
+```
+
+```{r, echo=FALSE, eval=FALSE}
 grpz <- 5
 for (i in 1: grpz){
 grp1 <- filter(house_data_cv, grp == i)
@@ -304,14 +355,8 @@ show<- grp1 %>%
   count()
 print(show)}
 ```
-FullBath also had too few observations in each group - some levels were left out, so I removed the variable from my model.
 
-```{r}
-test_cv <- house_data_cv %>% filter(grp == i)
-validation_cv <- house_data_cv %>% filter(grp != i)
-```
-
-For loop time
+Next, I defined a test set and training set within each fold of our dataset by using a for loop. 
 ```{r}
 grps <- 5
 varz <- 6
@@ -335,15 +380,19 @@ for (j in 1:varz){
   MSPE_mean[j] = mean(MSPE_cv[,j])
 }}
 
-MSPE_cv
 MSPE_mean
 ```
-```{r}
+```{r, echo=FALSE}
+kable(
+  MSPE_mean, col.names = "Test Error",
+  caption = "Table 4: Mean Squared Prediction Errors (1 variable at top, 6 variable at bottom)"
+)
+```
+
+```{r, echo=FALSE}
 coef(bestmods_cv, id=6)
 ```
-Based on the lowest mean squared prediction error after performing 5-fold cross validation and forward selection, we choose the best model with 6 variables.
-
-#What does it mean?
+Based on the lowest mean squared prediction error (1005433053) after performing 5-fold cross validation and forward selection, we choose the best model with 6 variables.
 
 Our new model is the following:
 
@@ -367,4 +416,4 @@ Given that there's 3 car spaces in the garage, the SalesPrice is expected to inc
 
 ###Conclusion
 
-Obviously, we go with the former. 5-fold cross validation is always superior. 
+Given the models were created using forward selection, our 6-variable Model 2 and 7-variable model Model 1 did not differ that much. The following variables showed up in both models, so are therefore likely to be important variables for predicting house sale prices: OverallQual, YearBuilt, TotalBsmtSF, GrLivArea, FullBath, and GarageCars. In layman's terms, this means overall quality, age, basement space, living area grade, number of bathrooms, and number of garage spaces matters for house prices.
