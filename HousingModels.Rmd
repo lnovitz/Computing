@@ -4,7 +4,9 @@ author: "Lianna Novitz"
 date: "3/27/2018"
 output: html_document
 ---
+This report details predictive models for house prices in an urban area of the United States. There are over 50 variables included in the dataset, and somehow we've got to narrow our model down to 6 variables, so let's get to work! 
 
+##Exploratory Analysis
 ```{r, echo=FALSE, warning = FALSE, message=FALSE}
 library(ggplot2) #tidyverse
 library(dplyr) #tidyverse
@@ -57,7 +59,7 @@ house_data %>%
   ggpairs()
 ```
 
-After performing the ggpairs function, I noticed that there are a few variables which have a high correlation with SalePrice. I have graphed these relationships below.
+After some preliminary exploratory analysis with the lovely ggpairs function, I noticed that there are a few variables which have a high correlation with SalePrice. I have graphed these relationships below.
 ```{r, echo=FALSE}
 qualP <-
 house_data %>% 
@@ -229,7 +231,7 @@ house_data %>%
   geom_histogram()
 ```
 
-```{r, echo=FALSE}
+```{r, fig.cap="Figure 2: Checking Linear Assumptions", echo=FALSE}
 grid.arrange(relate, distr,  ncol = 2, newpage = TRUE)
 ```
 
@@ -306,7 +308,7 @@ $$
 SalePrice=-1,400,000 + 17,000(OverallQual) + 400(YearBuilt) + \\ 300(YearRemodAdd) + 34(TotalBsmtSF) + 65(GrLivArea) \\ -20,000(FullBath=2) + 43,000(GarageCars = 3)
 $$
 The coefficients in our model relate to how much the response variable, SalesPrice, changes in regards to its corresponding variable, keeping all other variables constant. 
-#
+
 For every point increase in overall quality a house is given, the SalesPrice is expected to increase by  about $17,000, keeping all other variables constant. 
 
 For every year older the house is, the SalesPrice is expected to increase by  about $400, keeping all other variables constant. I would expect the opposite, but no model's perfect.
@@ -385,7 +387,7 @@ MSPE_mean
 ```{r, echo=FALSE}
 kable(
   MSPE_mean, col.names = "Test Error",
-  caption = "Table 4: Mean Squared Prediction Errors (1 variable at top, 6 variable at bottom)"
+  caption = "Table 5: Mean Squared Prediction Errors (1 variable at top, 6 variable at bottom)"
 )
 ```
 
@@ -417,3 +419,31 @@ Given that there's 3 car spaces in the garage, the SalesPrice is expected to inc
 ###Conclusion
 
 Given the models were created using forward selection, our 6-variable Model 2 and 7-variable model Model 1 did not differ that much. The following variables showed up in both models, so are therefore likely to be important variables for predicting house sale prices: OverallQual, YearBuilt, TotalBsmtSF, GrLivArea, FullBath, and GarageCars. In layman's terms, this means overall quality, age, basement space, living area grade, number of bathrooms, and number of garage spaces matters for house prices.
+
+##Appendix
+
+The only transformations done were to add a column at the end of the dataset specifying which fold each observation belonged to. 
+
+Model 1 
+```{r, eval=FALSE}
+set.seed(399)
+
+House.subset <- 
+  newhouse_data %>% 
+  mutate(grp = sample(0:1, 
+                      size=n(), 
+                      replace=TRUE))
+
+training <- House.subset %>% filter(grp == 0)
+validation <- House.subset %>% filter(grp == 1)
+```
+
+Model 2
+```{r, eval=FALSE}
+set.seed(599)
+
+house_data_cv <- house_data %>% 
+  mutate(grp = sample(rep(1:5, ceiling(nrow(house_data)/5)), 
+                      size=n(), 
+                      replace=FALSE))
+```
